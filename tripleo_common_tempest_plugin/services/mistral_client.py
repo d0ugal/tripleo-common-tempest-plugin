@@ -1,3 +1,5 @@
+# Copyright 2016 NEC Corporation. All rights reserved.
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -21,12 +23,12 @@ CONF = config.CONF
 
 class MistralClientV2(base.MistralClientBase):
 
-    def post_request(self, url_path, file_name):
+    def post_request(self, url_path, file_contents):
         headers = {"headers": "Content-Type:text/plain"}
 
         return self.post(
             url_path,
-            base.get_resource(file_name),
+            file_contents,
             headers=headers
         )
 
@@ -51,11 +53,25 @@ class MistralClientV2(base.MistralClientBase):
 
         return resp, json.loads(body)
 
-    def create_execution(self, workflow_name, wf_input=None):
+    def create_workbook(self, yaml_file):
+        resp, body = self.post_request('workbooks', yaml_file)
+
+        wb_name = json.loads(body)['name']
+        self.workbooks.append(wb_name)
+
+        _, wfs = self.get_list_obj('workflows')
+
+        for wf in wfs['workflows']:
+            if wf['name'].startswith(wb_name):
+                self.workflows.append(wf['name'])
+
+        return resp, json.loads(body)
+
+    def create_execution(self, workflow_name, input_=None):
         body = {"workflow_name": workflow_name}
 
-        if wf_input:
-            body.update({'input': json.dumps(wf_input)})
+        if input_:
+            body.update({'input': json.dumps(input_)})
 
         resp, body = self.post('executions', json.dumps(body))
 
@@ -63,12 +79,12 @@ class MistralClientV2(base.MistralClientBase):
 
         return resp, json.loads(body)
 
-    def create_action_execution(self, request_body, extra_headers={}):
-        resp, body = self.post_json('action_executions', request_body,
-                                    extra_headers)
+    def get_execution(self, execution_id):
+        return self.get('executions/%s' % execution_id)
 
-        params = json.loads(request_body.get('params', '{}'))
-        if params.get('save_result', False):
-            self.action_executions.append(json.loads(body)['id'])
+    def get_executions(self, task_id):
+        url_path = 'executions'
+        if task_id:
+            url_path += '?task_execution_id=%s' % task_id
 
-        return resp, json.loads(body)
+        return self.get_list_obj(url_path)

@@ -12,13 +12,25 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import uuid
+
 from tempest.lib import decorators
-from tempest import test
+
+from tripleo_common_tempest_plugin.tests import base
 
 
-class AccessWorkflowTestCase(test.BaseTestCase):
+class StackWorkflowTestCase(base.TestCase):
 
-    @decorators.attr(type='openstack')
     @decorators.idempotent_id('2d9bf96a-2d1f-4c79-a44d-97208bd0e1a3')
-    def test_noop(self):
-        pass
+    def test_wait_for_stack_does_not_exist(self):
+
+        resp, execution = self.mistralclient.create_execution(
+            "tripleo.stack.v1.wait_for_stack_does_not_exist",
+            {
+                'stack': str(uuid.uuid4()),
+            }
+        )
+
+        self.assertEqual(201, resp.status)
+        completed = self.mistralclient.wait_execution_success(execution)
+        self.assertEqual('SUCCESS', completed['state'])
