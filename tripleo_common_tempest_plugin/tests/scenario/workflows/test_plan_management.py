@@ -23,7 +23,7 @@ from tripleo_common_tempest_plugin.tests import base
 class StackWorkflowTestCase(base.TestCase):
 
     @decorators.idempotent_id('a001f2f0-0ca4-452a-8adf-b511c3fbd29b')
-    def test_create_plan(self):
+    def test_create_plan_without_generate_passwords(self):
 
         # TODO(d0ugal): Generating passwords requires some extra setup,
         # including creating the tripleo.undercloud-config Mistral environment.
@@ -33,6 +33,24 @@ class StackWorkflowTestCase(base.TestCase):
             {
                 'container': str(uuid.uuid4()),
                 'generate_passwords': False,
+            }
+        )
+
+        self.assertEqual(201, resp.status)
+        completed = self.mistralclient.wait_execution_success(execution)
+        self.assertEqual('SUCCESS', completed['state'])
+        output = json.loads(completed['output'])
+        self.assertEqual('Plan created.', output["message"]["message"])
+
+    @decorators.idempotent_id('d776ee43-c14a-4127-afa9-9951698a8113')
+    def test_create_plan_from_git_repo(self):
+
+        git_repo = 'git://git.openstack.org/openstack/tripleo-heat-templates'
+        resp, execution = self.mistralclient.create_execution(
+            "tripleo.plan_management.v1.create_deployment_plan",
+            {
+                'container': str(uuid.uuid4()),
+                'source_url': git_repo,
             }
         )
 
